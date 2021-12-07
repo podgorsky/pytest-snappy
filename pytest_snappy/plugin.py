@@ -2,7 +2,7 @@ from os import path
 
 from pytest import fixture, mark
 
-from snap import Snap
+from .snap import Snap
 
 
 def pytest_addoption(parser):
