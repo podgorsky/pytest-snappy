@@ -2,7 +2,7 @@ from os import path
 
 from pytest import fixture, mark
 
-from .snap import Snap
+from .snappy import Snappy
 
 
 def pytest_addoption(parser):
@@ -20,10 +20,13 @@ def pytest_addoption(parser):
 
 @fixture
 def snap(selenium, request):
-    snap = Snap(selenium, request.config.getoption('refresh_references'))
-    snap.filename = request.node.name
+    """
+    Main pytest-snappy fixture that yields initialized Snap object in test function
+    """
+    snappy = Snappy(selenium, request.config.getoption('refresh_references'))
+    snappy.filename = request.node.name
 
-    yield snap
+    yield snappy
 
 
 @mark.hookwrapper
@@ -33,13 +36,13 @@ def pytest_runtest_makereport(item, call):
     result = outcome.get_result()
 
     if 'snap' in item.fixturenames and call.when == 'call':
-        snap = item.funcargs['snap']
+        snappy = item.funcargs['snap']
 
         xfail = hasattr(result, 'wasxfail')
         fail = result.failed
         if fail or xfail or item.config.getoption('save_successful'):
-            with open(path.join(item.funcargs['tmpdir'].dirname, f'{snap.filename}.png'), 'wb') as file:
-                file.write(snap.difference_image or snap.output_snap)
+            with open(path.join(item.funcargs['tmpdir'].dirname, f'{snappy.filename}.png'), 'wb') as file:
+                file.write(snappy.difference_image or snappy.output_snap)
 
             if item.config.pluginmanager.hasplugin('allure'):
                 try:
@@ -48,7 +51,7 @@ def pytest_runtest_makereport(item, call):
                     pass
                 else:
                     allure.attach(
-                        snap.difference_image or snap.output_snap,
+                        snappy.difference_image or snappy.output_snap,
                         name='current_snapshot',
                         attachment_type=allure.attachment_type.PNG
                     )

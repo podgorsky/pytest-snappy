@@ -13,20 +13,20 @@ from skimage.metrics import structural_similarity as ssim
 
 
 class SnapSizeError(AssertionError):
-    """ Размеры изображений отличаются."""
+    """ Sizes of provided images are not equal. """
 
 
 class SnapDifferenceError(AssertionError):
-    """ Изображения отличаются. """
+    """ Contents of provided images are not equal. """
 
 
 class SnapTypeError(TypeError):
-    """ Недопустимый тип данных. """
+    """ Invalid data type given. """
 
 
 class SnapshotComparator(object):
     """
-    Класс, вычисляющий разницу между двумя изображениями.
+    Class that calculates the difference between two provided images and creates difference image.
     """
 
     def __init__(self, output_snap, reference_snap):
@@ -69,7 +69,7 @@ class SnapshotComparator(object):
 
     @singledispatchmethod
     def _read_snap(self, snap):
-        raise SnapTypeError(f'{type(snap)} является неподдерживаемым типом, ожидалось - {bytes}, {str}')
+        raise SnapTypeError(f'{type(snap)} is an unsupported type, expected - {bytes}, {str}')
 
     @_read_snap.register
     def _(self, snap: str):
@@ -82,7 +82,7 @@ class SnapshotComparator(object):
 
 class Asserter(SnapshotComparator):
     """
-    Класс, осуществляющий сравнение двух изображений.
+    Class asserting that the difference between two provided images is under the difference_limit.
     """
     def __init__(self, output_snap, reference_snap, difference_limit=0):
         self.difference_limit = difference_limit
@@ -92,18 +92,28 @@ class Asserter(SnapshotComparator):
     def assert_snap(self):
         if self.output_snap.shape != self.reference_snap.shape:
             raise SnapSizeError(
-                f'Размер скриншотов не совпадает.\n'
-                f'Размер нового скриншота {self.output_snap.shape[0]} на {self.output_snap.shape[1]},'
-                f'размер образца - {self.reference_snap.shape[0]} на {self.reference_snap.shape[1]}.'
+                f'Screenshot sizes do not match.\n'
+                f'New screenshot size - {self.output_snap.shape[0]} на {self.output_snap.shape[1]},'
+                f'reference size - {self.reference_snap.shape[0]} на {self.reference_snap.shape[1]}.'
             )
         if self.difference > self.difference_limit:
             raise SnapDifferenceError(
-                f'Разница между новым скриншотом и образцом ({self.difference}) '
-                f'превышает допустимое значение ({self.difference_limit})')
+                f'The difference between new screenshot and reference ({self.difference}) '
+                f'exceeds acceptable limit ({self.difference_limit})')
 
 
-class Snap(object):
+class Snappy(object):
+    """
+    Main pytest-snappy class that implements comparing methods used in test functions.
+    """
     def __init__(self, driver, refresh_reference):
+        """
+        Snappy object initialization method.
+
+        :param driver: Instance of Selenium WebDriver
+        :param refresh_reference: Boolean value specified on the command line
+        by '--refresh_references' parameter (False by default)
+        """
         self.driver = driver
         self.refresh_reference = refresh_reference
 
@@ -127,12 +137,24 @@ class Snap(object):
 
         self.driver.maximize_window()
 
-    def assert_snapshots(self, threshold=0):
-        with self.compare_snapshots(threshold):
+    def assert_snapshots(self, difference_limit=0) -> None:
+        """
+        Assert-variant of compare_snapshots method for situations when you dont need context manager functionality.
+        For example, when all operations before the screenshot is taken are guaranteed to complete.
+
+        :param difference_limit: Difference threshold, upon exceeding which an exception will be raised (0 by default).
+        """
+        with self.compare_snapshots(difference_limit):
             pass
 
     @contextmanager
-    def compare_snapshots(self, threshold=0):
+    def compare_snapshots(self, difference_limit=0) -> None:
+        """
+        Context manager for performing screenshot comparing (using the Asserter class),
+        reference saving and errors raising in cases when screenshots contents or sizes are different.
+
+        :param difference_limit: Difference threshold, upon exceeding which an exception will be raised (0 by default).
+        """
         yield
 
         reference_file = path.join(self.reference_directory, f'{self.filename}.png')
@@ -150,11 +172,11 @@ class Snap(object):
             with open(reference_file, 'wb') as file:
                 file.write(self.output_snap)
             skip(
-                'Образец изображения отсутствует или неактуален. '
-                'Текущее изображение сохранено в качестве образца.'
+                'Reference snapshot is missing or out of date. '
+                'The current screenshot is saved as a reference.'
             )
         else:
-            asserter = Asserter(self.output_snap, reference_file, threshold)
+            asserter = Asserter(self.output_snap, reference_file, difference_limit)
             try:
                 asserter.assert_snap()
             except SnapDifferenceError as error:
@@ -164,7 +186,11 @@ class Snap(object):
                 self.difference_image = self.output_snap
                 raise error
 
-    def _mask_elements(self):
+    def _mask_elements(self) -> None:
+        """
+        Masks (makes transparent) elements found by locators in self.mask_locators
+        (in order to hide dynamic elements on page).
+        """
         for locator in self.mask_locators:
             for element in self.driver.find_elements(*locator):
                 try:
@@ -173,7 +199,12 @@ class Snap(object):
                     print('Error : ', str(error))
                     raise error
 
-    def _get_fullpage_screenshot_as_bytes(self):
+    def _get_fullpage_screenshot_as_bytes(self) -> bytes:
+        """
+        Makes screenshot of full page and returns it as bytes (may not work in non-chromium browsers).
+
+        :return: Byte type full page screenshot
+        """
         def send(cmd, params):
             resource = f'/session/{self.driver.session_id}/chromium/send_command_and_get_result'
             url = self.driver.command_executor._url + resource
@@ -199,5 +230,10 @@ class Snap(object):
 
         return b64decode(screenshot['data'])
 
-    def _get_element_screenshot_as_bytes(self):
+    def _get_element_screenshot_as_bytes(self) -> bytes:
+        """
+        Makes screenshot of element found by self.locator.
+
+        :return: Byte type element screenshot
+        """
         return self.driver.find_element(*self.locator).screenshot_as_png
