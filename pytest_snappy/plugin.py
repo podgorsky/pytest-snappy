@@ -44,7 +44,7 @@ def pytest_runtest_makereport(item, call):
             with open(path.join(item.funcargs['tmpdir'].dirname, f'{snappy.filename}.png'), 'wb') as file:
                 file.write(snappy.difference_image or snappy.output_snap)
 
-            if item.config.pluginmanager.hasplugin('allure'):
+            if item.config.pluginmanager.hasplugin('allure_pytest'):
                 try:
                     import allure
                 except ImportError:
