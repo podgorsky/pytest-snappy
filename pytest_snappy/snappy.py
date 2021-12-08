@@ -1,9 +1,11 @@
+import sys
 from base64 import b64decode
 from contextlib import contextmanager
 from errno import EEXIST
 from functools import singledispatchmethod
 from json import dumps
 from os import path, makedirs, getcwd
+from typing import overload
 
 import numpy as np
 from cv2 import cv2
@@ -66,18 +68,31 @@ class SnapshotComparator(object):
         return cv2.addWeighted(
             cv2.drawContours(self.output_snap.copy(), contours, -1, color, -1), alpha, self.output_snap, 1 - alpha, 0
         )
+    if sys.version_info >= (3, 8):
+        @singledispatchmethod
+        def _read_snap(self, snap):
+            raise SnapTypeError(f'{type(snap)} is an unsupported type, expected - {bytes}, {str}')
 
-    @singledispatchmethod
-    def _read_snap(self, snap):
-        raise SnapTypeError(f'{type(snap)} is an unsupported type, expected - {bytes}, {str}')
+        @_read_snap.register
+        def _(self, snap: str):
+            return cv2.imread(snap)
 
-    @_read_snap.register
-    def _(self, snap: str):
-        return cv2.imread(snap)
+        @_read_snap.register
+        def _(self, snap: bytes):
+            return cv2.imdecode(np.asarray(bytearray(snap), dtype=np.uint8), cv2.IMREAD_COLOR)
+    else:
+        @overload
+        def _read_snap(self, snap: str) -> np.ndarray: ...
+        @overload
+        def _read_snap(self, snap: bytes) -> np.ndarray: ...
 
-    @_read_snap.register
-    def _(self, snap: bytes):
-        return cv2.imdecode(np.asarray(bytearray(snap), dtype=np.uint8), cv2.IMREAD_COLOR)
+        def _read_snap(self, snap):
+            if isinstance(snap, str):
+                return cv2.imread(snap)
+            elif isinstance(snap, bytes):
+                return cv2.imdecode(np.asarray(bytearray(snap), dtype=np.uint8), cv2.IMREAD_COLOR)
+            else:
+                raise SnapTypeError(f'{type(snap)} is an unsupported type, expected - {bytes}, {str}')
 
 
 class Asserter(SnapshotComparator):
