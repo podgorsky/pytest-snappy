@@ -2,7 +2,6 @@ import sys
 from base64 import b64decode
 from contextlib import contextmanager
 from errno import EEXIST
-from functools import singledispatchmethod
 from json import dumps
 from os import path, makedirs, getcwd
 from typing import overload
@@ -12,6 +11,9 @@ from cv2 import cv2
 from pytest import skip
 from selenium.common.exceptions import WebDriverException
 from skimage.metrics import structural_similarity as ssim
+
+if sys.version_info >= (3, 8):
+    from functools import singledispatchmethod
 
 
 class SnapSizeError(AssertionError):
