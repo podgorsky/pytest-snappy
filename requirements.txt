@@ -1,6 +1,6 @@
-numpy>=1.16.5
-cv2>=4.5.4.58
-pytest==6.2.1
-selenium==3.141.0
-scikit-image>=0.18.3
-pytest-selenium==2.0.1
+numpy >= 1.16.5
+opencv-python >= 4.5.4.58
+pytest >= 6.2.1
+selenium == 3.141.0
+pytest-selenium == 2.0.1
+scikit-image >= 0.17.2
