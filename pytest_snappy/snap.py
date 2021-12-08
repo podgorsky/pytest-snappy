@@ -128,24 +128,11 @@ class Snap(object):
         self.driver.maximize_window()
 
     def assert_snapshots(self, threshold=0):
-        """assert-style variant of compareScreenshot context manager
-        compareScreenshot() can be considerably more efficient for recording baselines by avoiding the need
-        to load pages before checking whether we're actually going to save them. This function allows you
-        to continue using normal unittest-style assertions if you don't need the efficiency benefits
-        """
-
         with self.compare_snapshots(threshold):
             pass
 
     @contextmanager
     def compare_snapshots(self, threshold=0):
-        """
-        Assert that a screenshot of an element is the same as a screenshot on disk,
-        within a given threshold.
-        :param threshold:
-            The threshold for triggering a test failure.
-        """
-
         yield
 
         reference_file = path.join(self.reference_directory, f'{self.filename}.png')
