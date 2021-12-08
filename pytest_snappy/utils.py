@@ -1,5 +1,5 @@
 class SnapLocatorsMixin:
-    """ Миксин для класса локаторов, позволяющий итерировать через значения локаторов. """
+    """ A mixin for class containing Selenium locators that allows you to iterate through locators values. """
     def __iter__(self):
         for attribute in filter(lambda attribute_name: not attribute_name.startswith('__'), dir(self)):
             yield getattr(self, attribute)

@@ -9,19 +9,19 @@ def pytest_addoption(parser):
     parser.addoption(
         '--refresh_references',
         action='store_true',
-        help=''
+        help='Overwrite existing snapshot references with screenshots created in the current test run'
     )
     parser.addoption(
         '--save_successful',
         action='store_true',
-        help=''
+        help='Save all output screenshots in tempdir'
     )
 
 
 @fixture
 def snap(selenium, request):
     """
-    Main pytest-snappy fixture that yields initialized Snap object in test function
+    Main pytest-snappy fixture that yields initialized Snap object in test function.
     """
     snappy = Snappy(selenium, request.config.getoption('refresh_references'))
     snappy.filename = request.node.name
