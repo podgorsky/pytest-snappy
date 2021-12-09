@@ -27,6 +27,9 @@ class SnapDifferenceError(AssertionError):
 class SnapTypeError(TypeError):
     """ Invalid data type given. """
 
+class SnapInvalidCallWarning(Warning):
+    """ Invalid attributes given. """
+
 
 class SnapshotComparator(object):
     """
@@ -185,7 +188,7 @@ class Snappy(object):
         elif self.locator:
             self.output_snap = self._get_element_screenshot_as_bytes()
         else:
-            raise
+            raise SnapInvalidCallWarning('Invalid arguments given, fullpage should be True or locator should be given')
 
         if not path.isfile(reference_file) or self.refresh_reference:
             with open(reference_file, 'wb') as file:
