@@ -70,6 +70,7 @@ class SnapshotComparator(object):
         return cv2.addWeighted(
             cv2.drawContours(self.output_snap.copy(), contours, -1, color, -1), alpha, self.output_snap, 1 - alpha, 0
         )
+
     if sys.version_info >= (3, 8):
         @singledispatchmethod
         def _read_snap(self, snap):
@@ -82,6 +83,7 @@ class SnapshotComparator(object):
         @_read_snap.register
         def _(self, snap: bytes):
             return cv2.imdecode(np.asarray(bytearray(snap), dtype=np.uint8), cv2.IMREAD_COLOR)
+
     else:
         @overload
         def _read_snap(self, snap: str) -> np.ndarray: ...
