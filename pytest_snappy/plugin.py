@@ -3,6 +3,7 @@ from os import path
 from pytest import fixture, mark
 
 from .snappy import Snappy
+from .utils import validate_filename
 
 
 def pytest_addoption(parser):
@@ -24,7 +25,7 @@ def snap(selenium, request):
     Main pytest-snappy fixture that yields initialized Snap object in test function.
     """
     snappy = Snappy(selenium, request.config.getoption('refresh_references'))
-    snappy.filename = request.node.name
+    snappy.filename = validate_filename(request.node.name)
 
     yield snappy
 
