@@ -9,4 +9,4 @@ class SnapLocatorsMixin:
 
 
 def validate_filename(name):
-    return sub(r'(?u)[^-\w]+', '_', str(name).strip()).strip('_')
+    return sub(r'(?u)[^\w]+', '_', str(name).strip()).strip('_')
