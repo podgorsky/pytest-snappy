@@ -1,18 +1,19 @@
-import sys
 from base64 import b64decode
 from contextlib import contextmanager
 from errno import EEXIST
 from json import dumps
 from os import path, makedirs, getcwd
-from typing import overload
+from sys import version_info
+from typing import overload, Iterable, Any, Union
 
 import numpy as np
 from cv2 import cv2
 from pytest import skip
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.common.by import By
 from skimage.metrics import structural_similarity as ssim
 
-if sys.version_info >= (3, 8):
+if version_info >= (3, 8):
     from functools import singledispatchmethod
 
 
@@ -26,6 +27,7 @@ class SnapDifferenceError(AssertionError):
 
 class SnapTypeError(TypeError):
     """ Invalid data type given. """
+
 
 class SnapInvalidCallWarning(Warning):
     """ Invalid attributes given. """
@@ -42,7 +44,6 @@ class SnapshotComparator(object):
 
         self._ssim_equality = None
         self._difference_image = None
-        self._get_equality_and_diff_image()
 
     @property
     def difference(self):
@@ -52,7 +53,7 @@ class SnapshotComparator(object):
     def difference_image(self):
         return cv2.imencode('.png', self._draw_contours())[1].tobytes()
 
-    def _get_equality_and_diff_image(self):
+    def get_equality_and_diff_image(self):
         self._ssim_equality, self._difference_image = ssim(*self._get_grayscale(), full=True, gaussian_weights=True)
 
     def _get_grayscale(self):
@@ -74,7 +75,7 @@ class SnapshotComparator(object):
             cv2.drawContours(self.output_snap.copy(), contours, -1, color, -1), alpha, self.output_snap, 1 - alpha, 0
         )
 
-    if sys.version_info >= (3, 8):
+    if version_info >= (3, 8):
         @singledispatchmethod
         def _read_snap(self, snap):
             raise SnapTypeError(f'{type(snap)} is an unsupported type, expected - {bytes}, {str}')
@@ -111,17 +112,22 @@ class Asserter(SnapshotComparator):
 
         super().__init__(output_snap, reference_snap)
 
+        self.assert_snap_sizes()
+        self.get_equality_and_diff_image()
+
     def assert_snap(self):
+        if self.difference > self.difference_limit:
+            raise SnapDifferenceError(
+                f'The difference between new screenshot and reference ({self.difference}) '
+                f'exceeds acceptable limit ({self.difference_limit})')
+
+    def assert_snap_sizes(self):
         if self.output_snap.shape != self.reference_snap.shape:
             raise SnapSizeError(
                 f'Screenshot sizes do not match.\n'
                 f'New screenshot size - {self.output_snap.shape[0]} на {self.output_snap.shape[1]},'
                 f'reference size - {self.reference_snap.shape[0]} на {self.reference_snap.shape[1]}.'
             )
-        if self.difference > self.difference_limit:
-            raise SnapDifferenceError(
-                f'The difference between new screenshot and reference ({self.difference}) '
-                f'exceeds acceptable limit ({self.difference_limit})')
 
 
 class Snappy(object):
@@ -183,10 +189,10 @@ class Snappy(object):
 
         if self.fullpage:
             if self.mask_locators:
-                self._mask_elements()
+                self._mask_elements(self.mask_locators)
             self.output_snap = self._get_fullpage_screenshot_as_bytes()
         elif self.locator:
-            self.output_snap = self._get_element_screenshot_as_bytes()
+            self.output_snap = self._get_element_screenshot_as_bytes(*self.locator)
         else:
             raise SnapInvalidCallWarning('Invalid arguments given, fullpage should be True or locator should be given')
 
@@ -208,13 +214,16 @@ class Snappy(object):
                 self.difference_image = self.output_snap
                 raise error
 
-    def _mask_elements(self) -> None:
+    def _mask_elements(self, mask_locators: Iterable[Iterable]) -> None:
         """
         Masks (makes transparent) elements found by locators in self.mask_locators
         (in order to hide dynamic elements on page).
+
+        :param mask_locators: Iterable object that contains iterable locators (may be tuples, lists, etc)
         """
-        for locator in self.mask_locators:
-            for element in self.driver.find_elements(*locator):
+        for locator in mask_locators:
+            by, locator, *_ = locator
+            for element in self.driver.find_elements(by=by, locator=locator):
                 try:
                     self.driver.execute_script('arguments[0].setAttribute("style", "opacity:0;");', element)
                 except WebDriverException as error:
@@ -225,7 +234,7 @@ class Snappy(object):
         """
         Makes screenshot of full page and returns it as bytes (may not work in non-chromium browsers).
 
-        :return: Byte type full page screenshot
+        :return: Byte type screenshot of full page
         """
         def send(cmd, params):
             resource = f'/session/{self.driver.session_id}/chromium/send_command_and_get_result'
@@ -252,10 +261,13 @@ class Snappy(object):
 
         return b64decode(screenshot['data'])
 
-    def _get_element_screenshot_as_bytes(self) -> bytes:
+    def _get_element_screenshot_as_bytes(self, by: Union[By, str], locator: str, *_: Any) -> bytes:
         """
         Makes screenshot of element found by self.locator.
 
-        :return: Byte type element screenshot
+        :param by: WebDriver By object or str e.g. 'css selector' or 'xpath'
+        :param locator: Element locator
+        :param _: Unused parameters for case when locator tuple contains more than two values
+        :return: Byte type screenshot of element found by given locator
         """
-        return self.driver.find_element(*self.locator).screenshot_as_png
+        return self.driver.find_element(by=by, locator=locator).screenshot_as_png
