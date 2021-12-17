@@ -223,7 +223,7 @@ class Snappy(object):
         """
         for locator in mask_locators:
             by, locator, *_ = locator
-            for element in self.driver.find_elements(by=by, locator=locator):
+            for element in self.driver.find_elements(by=by, value=locator):
                 try:
                     self.driver.execute_script('arguments[0].setAttribute("style", "opacity:0;");', element)
                 except WebDriverException as error:
@@ -270,4 +270,4 @@ class Snappy(object):
         :param _: Unused parameters for case when locator tuple contains more than two values
         :return: Byte type screenshot of element found by given locator
         """
-        return self.driver.find_element(by=by, locator=locator).screenshot_as_png
+        return self.driver.find_element(by=by, value=locator).screenshot_as_png
