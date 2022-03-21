@@ -187,12 +187,12 @@ class Snappy(object):
 
         reference_file = path.join(self.reference_directory, f'{self.filename}.png')
 
-        if self.fullpage:
+        if self.locator:
+            self.output_snap = self._get_element_screenshot_as_bytes(*self.locator)
+        elif self.fullpage:
             if self.mask_locators:
                 self._mask_elements(self.mask_locators)
             self.output_snap = self._get_fullpage_screenshot_as_bytes()
-        elif self.locator:
-            self.output_snap = self._get_element_screenshot_as_bytes(*self.locator)
         else:
             raise SnapInvalidCallWarning('Invalid arguments given, fullpage should be True or locator should be given')
 
