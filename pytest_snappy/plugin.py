@@ -6,6 +6,8 @@ from .snappy import Snappy
 from .utils import validate_filename
 
 
+ALLURE_ERROR_MESSAGE = 'Screenshot not found. Please make sure the locator finds the element on the page.'
+
 def pytest_addoption(parser):
     parser.addoption(
         '--refresh_references',
@@ -42,8 +44,9 @@ def pytest_runtest_makereport(item, call):
         xfail = hasattr(result, 'wasxfail')
         fail = result.failed
         if fail or xfail or item.config.getoption('save_successful'):
-            with open(path.join(item.funcargs['tmpdir'].dirname, f'{snappy.filename}.png'), 'wb') as file:
-                file.write(snappy.difference_image or snappy.output_snap)
+            if snappy.difference_image or snappy.output_snap:
+                with open(path.join(item.funcargs['tmpdir'].dirname, f'{snappy.filename}.png'), 'wb') as file:
+                    file.write(snappy.difference_image or snappy.output_snap)
 
             if item.config.pluginmanager.hasplugin('allure_pytest'):
                 try:
@@ -52,7 +55,9 @@ def pytest_runtest_makereport(item, call):
                     pass
                 else:
                     allure.attach(
-                        snappy.difference_image or snappy.output_snap,
+                        snappy.difference_image or snappy.output_snap or ALLURE_ERROR_MESSAGE,
                         name='current_snapshot',
                         attachment_type=allure.attachment_type.PNG
+                        if snappy.difference_image or snappy.output_snap
+                        else allure.attachment_type.TEXT
                     )
